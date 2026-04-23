@@ -16,6 +16,7 @@ import { Panel } from '../../components/Panel';
 import { XpBar } from '../../components/XpBar';
 import { RankBadge } from '../../components/RankBadge';
 import { SystemHeader } from '../../components/SystemHeader';
+import { Heatmap } from '../../components/Heatmap';
 import { useStore } from '../../lib/store';
 import {
   levelFromTotalXp,
@@ -136,6 +137,13 @@ export default function HunterScreen() {
             value={`${sideDone}/${sideQuests.length}`}
           />
         </View>
+
+        <Panel>
+          <Text style={styles.sectionTitle}>QUEST LOG</Text>
+          <View style={{ marginTop: space.sm }}>
+            <Heatmap />
+          </View>
+        </Panel>
 
         <Panel>
           <Text style={styles.sectionTitle}>PROGRESSION</Text>

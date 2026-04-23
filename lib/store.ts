@@ -24,6 +24,11 @@ export type SideQuest = {
   completedAt: number | null;
 };
 
+export type DayStat = {
+  dailyCompleted: number;
+  dailyTotal: number;
+};
+
 type State = {
   hunterName: string;
   totalXp: number;
@@ -33,6 +38,8 @@ type State = {
 
   dailyQuests: DailyQuest[];
   sideQuests: SideQuest[];
+
+  dayLog: Record<string, DayStat>;
 
   pendingLevelUp: number | null;
 };
@@ -57,6 +64,16 @@ type Actions = {
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
+function snapshotDayStat(
+  dayKey: string,
+  dailyQuests: DailyQuest[]
+): DayStat {
+  return {
+    dailyCompleted: dailyQuests.filter((q) => q.lastCompletedDay === dayKey).length,
+    dailyTotal: dailyQuests.length,
+  };
+}
+
 export const useStore = create<State & Actions>()(
   persist(
     (set, get) => ({
@@ -67,6 +84,7 @@ export const useStore = create<State & Actions>()(
       penaltyEnabled: true,
       dailyQuests: [],
       sideQuests: [],
+      dayLog: {},
       pendingLevelUp: null,
 
       setHunterName: (hunterName) => set({ hunterName: hunterName.trim() || 'Hunter' }),
@@ -75,12 +93,17 @@ export const useStore = create<State & Actions>()(
       addDailyQuest: (title) => {
         const t = title.trim();
         if (!t) return;
-        set((s) => ({
-          dailyQuests: [
+        const today = todayKey();
+        set((s) => {
+          const dailyQuests = [
             ...s.dailyQuests,
             { id: uid(), title: t, createdAt: Date.now(), lastCompletedDay: null },
-          ],
-        }));
+          ];
+          return {
+            dailyQuests,
+            dayLog: { ...s.dayLog, [today]: snapshotDayStat(today, dailyQuests) },
+          };
+        });
       },
       renameDailyQuest: (id, title) => {
         const t = title.trim();
@@ -89,8 +112,16 @@ export const useStore = create<State & Actions>()(
           dailyQuests: s.dailyQuests.map((q) => (q.id === id ? { ...q, title: t } : q)),
         }));
       },
-      deleteDailyQuest: (id) =>
-        set((s) => ({ dailyQuests: s.dailyQuests.filter((q) => q.id !== id) })),
+      deleteDailyQuest: (id) => {
+        const today = todayKey();
+        set((s) => {
+          const dailyQuests = s.dailyQuests.filter((q) => q.id !== id);
+          return {
+            dailyQuests,
+            dayLog: { ...s.dayLog, [today]: snapshotDayStat(today, dailyQuests) },
+          };
+        });
+      },
 
       toggleDailyQuest: (id) => {
         const today = todayKey();
@@ -98,23 +129,25 @@ export const useStore = create<State & Actions>()(
         const q = s.dailyQuests.find((x) => x.id === id);
         if (!q) return;
         const isDone = q.lastCompletedDay === today;
+        const dailyQuests = s.dailyQuests.map((x) =>
+          x.id === id ? { ...x, lastCompletedDay: isDone ? null : today } : x
+        );
+
         if (isDone) {
           set({
-            dailyQuests: s.dailyQuests.map((x) =>
-              x.id === id ? { ...x, lastCompletedDay: null } : x
-            ),
+            dailyQuests,
             totalXp: Math.max(0, s.totalXp - XP_PER_DAILY),
+            dayLog: { ...s.dayLog, [today]: snapshotDayStat(today, dailyQuests) },
           });
         } else {
           const before = levelFromTotalXp(s.totalXp).level;
           const nextXp = s.totalXp + XP_PER_DAILY;
           const after = levelFromTotalXp(nextXp).level;
           set({
-            dailyQuests: s.dailyQuests.map((x) =>
-              x.id === id ? { ...x, lastCompletedDay: today } : x
-            ),
+            dailyQuests,
             totalXp: nextXp,
             pendingLevelUp: after > before ? after : s.pendingLevelUp,
+            dayLog: { ...s.dayLog, [today]: snapshotDayStat(today, dailyQuests) },
           });
         }
       },
@@ -167,7 +200,17 @@ export const useStore = create<State & Actions>()(
       rolloverIfNeeded: () => {
         const today = todayKey();
         const s = get();
-        if (s.lastRolloverDay === today) return;
+
+        const sealedYesterday = {
+          ...s.dayLog,
+          [s.lastRolloverDay]: snapshotDayStat(s.lastRolloverDay, s.dailyQuests),
+          [today]: s.dayLog[today] ?? snapshotDayStat(today, s.dailyQuests),
+        };
+
+        if (s.lastRolloverDay === today) {
+          set({ dayLog: sealedYesterday });
+          return;
+        }
 
         const daysSince = daysBetween(s.lastRolloverDay, today);
         const completedYesterdayIds = s.dailyQuests
@@ -196,6 +239,7 @@ export const useStore = create<State & Actions>()(
           lastRolloverDay: today,
           streak: newStreak,
           totalXp: nextXp,
+          dayLog: sealedYesterday,
         });
       },
 
@@ -212,6 +256,7 @@ export const useStore = create<State & Actions>()(
         penaltyEnabled: s.penaltyEnabled,
         dailyQuests: s.dailyQuests,
         sideQuests: s.sideQuests,
+        dayLog: s.dayLog,
       }),
     }
   )

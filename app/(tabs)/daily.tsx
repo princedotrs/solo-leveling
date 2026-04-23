@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -129,8 +129,7 @@ function EditModal({
   onSave: (t: string) => void;
 }) {
   const [value, setValue] = useState(initial);
-  // reset when opening
-  useMemo(() => {
+  useEffect(() => {
     setValue(initial);
   }, [initial]);
 
