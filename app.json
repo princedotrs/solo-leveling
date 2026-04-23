@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "com.prince.sololeveling",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#05060f",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -43,6 +44,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "be63c48a-3ac3-4deb-b4c0-6740740fc532"
+      }
+    },
+    "owner": "prince981620"
   }
 }
