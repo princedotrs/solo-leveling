@@ -8,6 +8,7 @@ import {
   TextInput,
   Switch,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,16 +18,22 @@ import { XpBar } from '../../components/XpBar';
 import { RankBadge } from '../../components/RankBadge';
 import { SystemHeader } from '../../components/SystemHeader';
 import { Heatmap } from '../../components/Heatmap';
+import { HunterLicense } from '../../components/HunterLicense';
 import { useStore } from '../../lib/store';
 import {
   levelFromTotalXp,
   rankFromLevel,
+  todayKey,
   totalXpToReachLevel,
   xpForLevel,
 } from '../../lib/leveling';
 
 export default function HunterScreen() {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const licenseWidth = screenWidth > 0
+    ? Math.min(Math.max(screenWidth - space.lg * 2, 280), 520)
+    : 360;
   const hunterName = useStore((s) => s.hunterName);
   const setHunterName = useStore((s) => s.setHunterName);
   const totalXp = useStore((s) => s.totalXp);
@@ -58,7 +65,7 @@ export default function HunterScreen() {
   }, [level]);
 
   const dailyDoneToday = dailyQuests.filter(
-    (q) => q.lastCompletedDay === new Date().toISOString().slice(0, 10)
+    (q) => q.lastCompletedDay === todayKey()
   ).length;
   const sideDone = sideQuests.filter((q) => q.completedAt).length;
 
@@ -71,6 +78,8 @@ export default function HunterScreen() {
       <SystemHeader title="Hunter Profile" subtitle="status window" />
 
       <View style={styles.body}>
+        <HunterLicense width={licenseWidth} />
+
         <Panel style={styles.headerPanel}>
           <View style={styles.headerRow}>
             <RankBadge rank={rank} size={56} />

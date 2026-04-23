@@ -42,11 +42,19 @@ type State = {
   dayLog: Record<string, DayStat>;
 
   pendingLevelUp: number | null;
+
+  photoUri: string | null;
+  affiliation: string;
+  country: string;
+  issuedAt: number;
 };
 
 type Actions = {
   setHunterName: (name: string) => void;
   togglePenalty: (on: boolean) => void;
+  setPhotoUri: (uri: string | null) => void;
+  setAffiliation: (value: string) => void;
+  setCountry: (value: string) => void;
 
   addDailyQuest: (title: string) => void;
   renameDailyQuest: (id: string, title: string) => void;
@@ -86,9 +94,16 @@ export const useStore = create<State & Actions>()(
       sideQuests: [],
       dayLog: {},
       pendingLevelUp: null,
+      photoUri: null,
+      affiliation: 'N/A',
+      country: 'Republic of Korea',
+      issuedAt: Date.now(),
 
       setHunterName: (hunterName) => set({ hunterName: hunterName.trim() || 'Hunter' }),
       togglePenalty: (penaltyEnabled) => set({ penaltyEnabled }),
+      setPhotoUri: (photoUri) => set({ photoUri }),
+      setAffiliation: (affiliation) => set({ affiliation: affiliation.trim() || 'N/A' }),
+      setCountry: (country) => set({ country: country.trim() || 'N/A' }),
 
       addDailyQuest: (title) => {
         const t = title.trim();
@@ -257,6 +272,10 @@ export const useStore = create<State & Actions>()(
         dailyQuests: s.dailyQuests,
         sideQuests: s.sideQuests,
         dayLog: s.dayLog,
+        photoUri: s.photoUri,
+        affiliation: s.affiliation,
+        country: s.country,
+        issuedAt: s.issuedAt,
       }),
     }
   )
