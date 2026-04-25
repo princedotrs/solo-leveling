@@ -10,9 +10,11 @@ import {
   daysBetween,
 } from './leveling';
 import {
+  BONUS_HISTORY_MAX,
   bonusPenaltyXp,
   findBonusQuest,
   pickNextBonusQuestId,
+  type BonusQuestHistoryEntry,
 } from './bonusQuests';
 
 export type DailyQuest = {
@@ -43,12 +45,6 @@ export type ActiveBonusQuest = {
 export type BonusQuestOffer = {
   questId: string;
   offeredAt: number;
-};
-
-export type BonusQuestHistoryEntry = {
-  questId: string;
-  status: 'completed' | 'rejected' | 'expired';
-  at: number;
 };
 
 type State = {
@@ -308,8 +304,7 @@ export const useStore = create<State & Actions>()(
       offerBonusQuestIfPossible: () => {
         const s = get();
         if (s.activeBonusQuest || s.pendingBonusOffer) return;
-        const recentIds = s.bonusQuestHistory.map((h) => h.questId);
-        const questId = pickNextBonusQuestId(recentIds);
+        const questId = pickNextBonusQuestId(s.bonusQuestHistory);
         set({ pendingBonusOffer: { questId, offeredAt: Date.now() } });
       },
 
@@ -344,7 +339,7 @@ export const useStore = create<State & Actions>()(
               status: 'rejected' as const,
               at: Date.now(),
             },
-          ].slice(-30),
+          ].slice(-BONUS_HISTORY_MAX),
         });
       },
 
@@ -366,7 +361,7 @@ export const useStore = create<State & Actions>()(
           bonusQuestHistory: [
             ...s.bonusQuestHistory,
             { questId: quest.id, status: 'completed' as const, at: Date.now() },
-          ].slice(-30),
+          ].slice(-BONUS_HISTORY_MAX),
         });
       },
 
@@ -385,7 +380,7 @@ export const useStore = create<State & Actions>()(
               status: 'expired' as const,
               at: Date.now(),
             },
-          ].slice(-30),
+          ].slice(-BONUS_HISTORY_MAX),
         });
       },
 

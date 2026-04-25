@@ -1,5 +1,13 @@
 export type BonusCategory = 'Solitude' | 'Discipline' | 'Reflection' | 'Growth';
 
+export type BonusQuestStatus = 'completed' | 'rejected' | 'expired';
+
+export type BonusQuestHistoryEntry = {
+  questId: string;
+  status: BonusQuestStatus;
+  at: number;
+};
+
 export type BonusQuest = {
   id: string;
   title: string;
@@ -8,6 +16,14 @@ export type BonusQuest = {
   durationHours: 4 | 24 | 72 | 168;
   xpReward: number;
 };
+
+export const BONUS_COOLDOWN_DAYS: Record<BonusQuestStatus, number> = {
+  completed: 30,
+  rejected: 3,
+  expired: 3,
+};
+
+export const BONUS_HISTORY_MAX = 100;
 
 export const BONUS_QUEST_POOL: BonusQuest[] = [
   {
@@ -259,11 +275,41 @@ export function findBonusQuest(id: string): BonusQuest | undefined {
   return BONUS_QUEST_POOL.find((q) => q.id === id);
 }
 
-export function pickNextBonusQuestId(recentIds: string[]): string {
-  const recent = new Set(recentIds.slice(-6));
-  const candidates = BONUS_QUEST_POOL.filter((q) => !recent.has(q.id));
-  const pool = candidates.length > 0 ? candidates : BONUS_QUEST_POOL;
+export function pickNextBonusQuestId(
+  history: BonusQuestHistoryEntry[],
+  now: number = Date.now()
+): string {
+  const latestByQuest = new Map<string, BonusQuestHistoryEntry>();
+  for (const entry of history) {
+    const existing = latestByQuest.get(entry.questId);
+    if (!existing || entry.at > existing.at) latestByQuest.set(entry.questId, entry);
+  }
+
+  const eligible = BONUS_QUEST_POOL.filter((q) => {
+    const last = latestByQuest.get(q.id);
+    if (!last) return true;
+    const days = (now - last.at) / 86_400_000;
+    return days >= BONUS_COOLDOWN_DAYS[last.status];
+  });
+
+  const pool = eligible.length > 0 ? eligible : BONUS_QUEST_POOL;
   return pool[Math.floor(Math.random() * pool.length)].id;
+}
+
+export function questCooldownRemainingMs(
+  questId: string,
+  history: BonusQuestHistoryEntry[],
+  now: number = Date.now()
+): number {
+  let latest: BonusQuestHistoryEntry | null = null;
+  for (const entry of history) {
+    if (entry.questId !== questId) continue;
+    if (!latest || entry.at > latest.at) latest = entry;
+  }
+  if (!latest) return 0;
+  const cooldownMs = BONUS_COOLDOWN_DAYS[latest.status] * 86_400_000;
+  const remaining = latest.at + cooldownMs - now;
+  return Math.max(0, remaining);
 }
 
 export function bonusPenaltyXp(reward: number): number {
