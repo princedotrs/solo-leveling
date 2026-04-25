@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from '../lib/theme';
 import { useStore } from '../lib/store';
 import { LevelUpModal } from '../components/LevelUpModal';
+import { BonusQuestOfferModal } from '../components/BonusQuestOfferModal';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -16,10 +17,12 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const rolloverIfNeeded = useStore((s) => s.rolloverIfNeeded);
+  const expireBonusQuestIfNeeded = useStore((s) => s.expireBonusQuestIfNeeded);
 
   useEffect(() => {
     rolloverIfNeeded();
-  }, [rolloverIfNeeded]);
+    expireBonusQuestIfNeeded();
+  }, [rolloverIfNeeded, expireBonusQuestIfNeeded]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -34,6 +37,7 @@ export default function RootLayout() {
             }}
           />
           <LevelUpModal />
+          <BonusQuestOfferModal />
         </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>

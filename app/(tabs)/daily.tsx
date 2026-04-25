@@ -16,6 +16,7 @@ import { Panel } from '../../components/Panel';
 import { QuestItem } from '../../components/QuestItem';
 import { AddQuestBar } from '../../components/AddQuestBar';
 import { SystemHeader } from '../../components/SystemHeader';
+import { ActiveBonusQuestCard } from '../../components/ActiveBonusQuestCard';
 import { useStore } from '../../lib/store';
 import { XP_PER_DAILY, todayKey } from '../../lib/leveling';
 
@@ -52,6 +53,8 @@ export default function DailyScreen() {
         <SystemHeader title="Daily Quests" subtitle="resets at midnight" />
 
         <View style={styles.body}>
+          <ActiveBonusQuestCard />
+
           <Panel>
             <View style={styles.summaryRow}>
               <View>

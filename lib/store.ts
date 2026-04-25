@@ -9,6 +9,11 @@ import {
   todayKey,
   daysBetween,
 } from './leveling';
+import {
+  bonusPenaltyXp,
+  findBonusQuest,
+  pickNextBonusQuestId,
+} from './bonusQuests';
 
 export type DailyQuest = {
   id: string;
@@ -29,6 +34,23 @@ export type DayStat = {
   dailyTotal: number;
 };
 
+export type ActiveBonusQuest = {
+  questId: string;
+  acceptedAt: number;
+  deadline: number;
+};
+
+export type BonusQuestOffer = {
+  questId: string;
+  offeredAt: number;
+};
+
+export type BonusQuestHistoryEntry = {
+  questId: string;
+  status: 'completed' | 'rejected' | 'expired';
+  at: number;
+};
+
 type State = {
   hunterName: string;
   totalXp: number;
@@ -47,6 +69,10 @@ type State = {
   affiliation: string;
   country: string;
   issuedAt: number;
+
+  activeBonusQuest: ActiveBonusQuest | null;
+  pendingBonusOffer: BonusQuestOffer | null;
+  bonusQuestHistory: BonusQuestHistoryEntry[];
 };
 
 type Actions = {
@@ -68,6 +94,13 @@ type Actions = {
 
   rolloverIfNeeded: () => void;
   consumeLevelUp: () => void;
+
+  offerBonusQuestIfPossible: () => void;
+  acceptBonusQuest: () => void;
+  rejectBonusQuest: () => void;
+  completeBonusQuest: () => void;
+  forfeitBonusQuest: () => void;
+  expireBonusQuestIfNeeded: () => void;
 };
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -98,6 +131,9 @@ export const useStore = create<State & Actions>()(
       affiliation: 'N/A',
       country: 'Republic of Korea',
       issuedAt: Date.now(),
+      activeBonusQuest: null,
+      pendingBonusOffer: null,
+      bonusQuestHistory: [],
 
       setHunterName: (hunterName) => set({ hunterName: hunterName.trim() || 'Hunter' }),
       togglePenalty: (penaltyEnabled) => set({ penaltyEnabled }),
@@ -164,6 +200,12 @@ export const useStore = create<State & Actions>()(
             pendingLevelUp: after > before ? after : s.pendingLevelUp,
             dayLog: { ...s.dayLog, [today]: snapshotDayStat(today, dailyQuests) },
           });
+          const allDone =
+            dailyQuests.length > 0 &&
+            dailyQuests.every((x) => x.lastCompletedDay === today);
+          if (allDone) {
+            get().offerBonusQuestIfPossible();
+          }
         }
       },
 
@@ -256,9 +298,103 @@ export const useStore = create<State & Actions>()(
           totalXp: nextXp,
           dayLog: sealedYesterday,
         });
+
+        get().expireBonusQuestIfNeeded();
+        get().offerBonusQuestIfPossible();
       },
 
       consumeLevelUp: () => set({ pendingLevelUp: null }),
+
+      offerBonusQuestIfPossible: () => {
+        const s = get();
+        if (s.activeBonusQuest || s.pendingBonusOffer) return;
+        const recentIds = s.bonusQuestHistory.map((h) => h.questId);
+        const questId = pickNextBonusQuestId(recentIds);
+        set({ pendingBonusOffer: { questId, offeredAt: Date.now() } });
+      },
+
+      acceptBonusQuest: () => {
+        const s = get();
+        if (!s.pendingBonusOffer) return;
+        const quest = findBonusQuest(s.pendingBonusOffer.questId);
+        if (!quest) {
+          set({ pendingBonusOffer: null });
+          return;
+        }
+        const now = Date.now();
+        set({
+          pendingBonusOffer: null,
+          activeBonusQuest: {
+            questId: quest.id,
+            acceptedAt: now,
+            deadline: now + quest.durationHours * 3600_000,
+          },
+        });
+      },
+
+      rejectBonusQuest: () => {
+        const s = get();
+        if (!s.pendingBonusOffer) return;
+        set({
+          pendingBonusOffer: null,
+          bonusQuestHistory: [
+            ...s.bonusQuestHistory,
+            {
+              questId: s.pendingBonusOffer.questId,
+              status: 'rejected' as const,
+              at: Date.now(),
+            },
+          ].slice(-30),
+        });
+      },
+
+      completeBonusQuest: () => {
+        const s = get();
+        if (!s.activeBonusQuest) return;
+        const quest = findBonusQuest(s.activeBonusQuest.questId);
+        if (!quest) {
+          set({ activeBonusQuest: null });
+          return;
+        }
+        const before = levelFromTotalXp(s.totalXp).level;
+        const nextXp = s.totalXp + quest.xpReward;
+        const after = levelFromTotalXp(nextXp).level;
+        set({
+          activeBonusQuest: null,
+          totalXp: nextXp,
+          pendingLevelUp: after > before ? after : s.pendingLevelUp,
+          bonusQuestHistory: [
+            ...s.bonusQuestHistory,
+            { questId: quest.id, status: 'completed' as const, at: Date.now() },
+          ].slice(-30),
+        });
+      },
+
+      forfeitBonusQuest: () => {
+        const s = get();
+        if (!s.activeBonusQuest) return;
+        const quest = findBonusQuest(s.activeBonusQuest.questId);
+        const penalty = quest ? bonusPenaltyXp(quest.xpReward) : 0;
+        set({
+          activeBonusQuest: null,
+          totalXp: Math.max(0, s.totalXp - penalty),
+          bonusQuestHistory: [
+            ...s.bonusQuestHistory,
+            {
+              questId: s.activeBonusQuest.questId,
+              status: 'expired' as const,
+              at: Date.now(),
+            },
+          ].slice(-30),
+        });
+      },
+
+      expireBonusQuestIfNeeded: () => {
+        const s = get();
+        if (!s.activeBonusQuest) return;
+        if (Date.now() < s.activeBonusQuest.deadline) return;
+        get().forfeitBonusQuest();
+      },
     }),
     {
       name: 'solo-leveling@v1',
@@ -276,6 +412,9 @@ export const useStore = create<State & Actions>()(
         affiliation: s.affiliation,
         country: s.country,
         issuedAt: s.issuedAt,
+        activeBonusQuest: s.activeBonusQuest,
+        pendingBonusOffer: s.pendingBonusOffer,
+        bonusQuestHistory: s.bonusQuestHistory,
       }),
     }
   )
