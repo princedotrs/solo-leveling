@@ -16,6 +16,7 @@ import {
   pickNextBonusQuestId,
   type BonusQuestHistoryEntry,
 } from './bonusQuests';
+import type { UpdateInfo } from './updater';
 
 export type DailyQuest = {
   id: string;
@@ -69,6 +70,10 @@ type State = {
   activeBonusQuest: ActiveBonusQuest | null;
   pendingBonusOffer: BonusQuestOffer | null;
   bonusQuestHistory: BonusQuestHistoryEntry[];
+
+  availableUpdate: UpdateInfo | null;
+  updateRejectedVersion: string | null;
+  lastUpdateCheckAt: number | null;
 };
 
 type Actions = {
@@ -97,6 +102,10 @@ type Actions = {
   completeBonusQuest: () => void;
   forfeitBonusQuest: () => void;
   expireBonusQuestIfNeeded: () => void;
+
+  setAvailableUpdate: (info: UpdateInfo | null) => void;
+  rejectAvailableUpdate: () => void;
+  markUpdateCheckedNow: () => void;
 };
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -130,6 +139,9 @@ export const useStore = create<State & Actions>()(
       activeBonusQuest: null,
       pendingBonusOffer: null,
       bonusQuestHistory: [],
+      availableUpdate: null,
+      updateRejectedVersion: null,
+      lastUpdateCheckAt: null,
 
       setHunterName: (hunterName) => set({ hunterName: hunterName.trim() || 'Hunter' }),
       togglePenalty: (penaltyEnabled) => set({ penaltyEnabled }),
@@ -390,6 +402,14 @@ export const useStore = create<State & Actions>()(
         if (Date.now() < s.activeBonusQuest.deadline) return;
         get().forfeitBonusQuest();
       },
+
+      setAvailableUpdate: (info) => set({ availableUpdate: info }),
+      rejectAvailableUpdate: () => {
+        const s = get();
+        if (!s.availableUpdate) return;
+        set({ updateRejectedVersion: s.availableUpdate.version });
+      },
+      markUpdateCheckedNow: () => set({ lastUpdateCheckAt: Date.now() }),
     }),
     {
       name: 'solo-leveling@v1',
@@ -410,6 +430,9 @@ export const useStore = create<State & Actions>()(
         activeBonusQuest: s.activeBonusQuest,
         pendingBonusOffer: s.pendingBonusOffer,
         bonusQuestHistory: s.bonusQuestHistory,
+        availableUpdate: s.availableUpdate,
+        updateRejectedVersion: s.updateRejectedVersion,
+        lastUpdateCheckAt: s.lastUpdateCheckAt,
       }),
     }
   )

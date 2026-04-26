@@ -10,6 +10,10 @@ import { colors } from '../lib/theme';
 import { useStore } from '../lib/store';
 import { LevelUpModal } from '../components/LevelUpModal';
 import { BonusQuestOfferModal } from '../components/BonusQuestOfferModal';
+import {
+  UpdatePromptModal,
+  useAutoUpdateCheck,
+} from '../components/UpdatePromptModal';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -23,6 +27,8 @@ export default function RootLayout() {
     rolloverIfNeeded();
     expireBonusQuestIfNeeded();
   }, [rolloverIfNeeded, expireBonusQuestIfNeeded]);
+
+  useAutoUpdateCheck();
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -38,6 +44,7 @@ export default function RootLayout() {
           />
           <LevelUpModal />
           <BonusQuestOfferModal />
+          <UpdatePromptModal />
         </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>

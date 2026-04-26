@@ -19,6 +19,7 @@ import { RankBadge } from '../../components/RankBadge';
 import { SystemHeader } from '../../components/SystemHeader';
 import { Heatmap } from '../../components/Heatmap';
 import { HunterLicense } from '../../components/HunterLicense';
+import { UpdaterPanel } from '../../components/UpdaterPanel';
 import { useStore } from '../../lib/store';
 import {
   levelFromTotalXp,
@@ -205,6 +206,8 @@ export default function HunterScreen() {
             <Text style={styles.aboutText}>ABOUT</Text>
           </Pressable>
         </Panel>
+
+        <UpdaterPanel />
       </View>
     </ScrollView>
   );
